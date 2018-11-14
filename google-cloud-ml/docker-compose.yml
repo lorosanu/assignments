@@ -1,0 +1,8 @@
+version: '2'
+services:
+  devel:
+    build: .
+    volumes:
+    - .:/src
+    working_dir: /src/
+    entrypoint: ./bin/choose_command
