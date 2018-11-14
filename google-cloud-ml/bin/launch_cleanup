@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+
+#=====================================
+# Process the command line arguments
+#=====================================
+
+if [ $# -ne 2 ] || ([ $# == 1 ] && [ "$1" == "-h" ] || [ "$1" == "--help" ])
+then
+  cat << EOM
+Objective: remove all data
+Usage:   ./bin/launch_cleanup <project_id> <auth_file>
+Example: ./bin/launch_cleanup mnist-222313 auth/auth-key.json
+EOM
+  exit 1
+fi
+
+project_id=$1
+auth_file=$2
+
+#=====================================
+# Set up
+#=====================================
+
+region=europe-west1
+
+project_name=$(echo "$project_id" | cut -d"-" -f1)
+bucket_name=storage-${project_name}
+
+#========================
+# Execution
+#========================
+
+echo "Set up credentials and project"
+gcloud auth activate-service-account --key-file $auth_file
+gcloud config set project $project_id
+
+echo "Clean all data"
+gsutil rm -r gs://${bucket_name}

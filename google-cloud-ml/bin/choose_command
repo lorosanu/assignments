@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+
+#=====================================
+# Process the command line arguments
+#=====================================
+
+if [ $# -lt 3 ] || ([ $# == 1 ] && [ "$1" == "-h" ] || [ "$1" == "--help" ])
+then
+  cat << EOM
+Objective: train, deploy and use for inference a MNIST model
+Usage:   ./bin/choose_command <action> <project_id> <auth_file>
+Example: ./bin/choose_command train-local mnist-222313 auth/auth-key.json
+EOM
+  exit 1
+fi
+
+action=$1
+project_id=$2
+auth_file=$3
+
+if [ ! -f $auth_file ]
+then
+    echo "Authentication file $auth_file not found!"
+    exit 1
+fi
+
+arguments="${@:2}"
+
+#=====================================
+# Execution
+#=====================================
+
+case "$action" in
+"train-local")
+    echo "Launch training process locally"
+    ./bin/launch_train_local $arguments
+    ;;
+"train-cloud")
+    echo "Launch training process of shallow/deep NN on google cloud"
+    ./bin/launch_train_cloud $arguments
+    ;;
+"deploy-model")
+    echo "Launch model deployment"
+    ./bin/launch_deploy_model $arguments
+    ;;
+"predict-batch")
+    echo "Launch batch prediction on google cloud"
+    ./bin/launch_predict_batch $arguments
+    ;;
+"launch-cleanup")
+    echo "Launch cleanup"
+    ./bin/launch_cleanup $arguments
+    ;;
+*)
+    echo "Action $action is unknown"
+    exit 1
+    ;;
+esac

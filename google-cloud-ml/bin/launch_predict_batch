@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+
+#=====================================
+# Process the command line arguments
+#=====================================
+
+if [ $# -ne 4 ] || ([ $# == 1 ] && [ "$1" == "-h" ] || [ "$1" == "--help" ])
+then
+  cat << EOM
+Objective: launch a batch prediction on the deployed MNIST model
+Usage:   ./bin/launch_predict_batch <project_id> <auth_file> <model_type> <model_version>
+Example: ./bin/launch_predict_batch mnist-222313 auth/auth-key.json shadow v1
+EOM
+  exit 1
+fi
+
+project_id=$1
+auth_file=$2
+model_type=$3
+model_version=$4
+
+#=====================================
+# Set up
+#=====================================
+
+project_name=$(echo "$project_id" | cut -d"-" -f1)
+
+region=europe-west1
+bucket_name=storage-${project_name}
+
+job_name=${project_name}_predict_${model_type}_${model_version}_1
+
+model_name=${project_name}_${model_type}
+
+test_json=gs://${bucket_name}/data/test.json
+output_path=gs://${bucket_name}/${job_name}
+
+#========================
+# Execution
+#========================
+
+echo "Set up credentials and project"
+gcloud auth activate-service-account --key-file $auth_file
+gcloud config set project $project_id
+
+echo "Set up Cloud Storage buckets"
+gsutil mb -l $region gs://${bucket_name}
+
+echo "Upload test data"
+gsutil cp data/image_selection.json gs://${bucket_name}/data/test.json
+
+echo "Submit the prediction job"
+gcloud ml-engine jobs submit prediction $job_name \
+    --model $model_name \
+    --version $model_version \
+    --data-format text \
+    --region $region \
+    --input-paths $test_json \
+    --output-path $output_path/predictions
+
+echo "Inspect the generated output files"
+gsutil ls -r $output_path
+
+echo "Show predictions"
+gsutil cat $output_path/prediction.results-00000-of-00001

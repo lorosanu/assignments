@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+
+#=====================================
+# Process the command line arguments
+#=====================================
+
+if [ $# -ne 3 ] || ([ $# == 1 ] && [ "$1" == "-h" ] || [ "$1" == "--help" ])
+then
+  cat << EOM
+Objective: train a MNIST model locally
+Usage:   ./bin/launch_train_local <project_id> <auth_file> <model_type>
+Example: ./bin/launch_train_local mnist-222313 auth/auth-key.json shallow
+EOM
+  exit 1
+fi
+
+project_id=$1
+auth_file=$2
+model_type=$3
+
+#=====================================
+# Set up
+#=====================================
+
+output_path=output/${model_type}/
+mkdir -p $output_path
+rm -rf $output_path/*
+
+#=====================================
+# Execution
+#=====================================
+
+echo "Set up credentials and project"
+gcloud auth activate-service-account --key-file $auth_file
+gcloud config set project $project_id
+
+echo "Launch training"
+
+if [ "$model_type" == "shallow" ]
+then
+    gcloud ml-engine local train \
+        --module-name mnist.task \
+        --package-path mnist/ \
+        --job-dir $output_path \
+        -- \
+        --shallow \
+        --train-steps 1000 \
+        --eval-steps 100 \
+        --train-batch-size 256 \
+        --eval-batch-size 256 \
+        --local
+elif [ "$model_type" == "deep" ]
+then
+    gcloud ml-engine local train \
+        --module-name mnist.task \
+        --package-path mnist/ \
+        --job-dir $output_path \
+        -- \
+        --train-steps 1000 \
+        --eval-steps 100 \
+        --train-batch-size 256 \
+        --eval-batch-size 256 \
+        --local
+else
+    echo "Unknown model type: $model_type"
+    exit 1
+fi
+
+echo "Inspect the generated output files"
+ls -l $output_path

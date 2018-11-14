@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+
+#=====================================
+# Process the command line arguments
+#=====================================
+
+if [ $# -ne 5 ] || ([ $# == 1 ] && [ "$1" == "-h" ] || [ "$1" == "--help" ])
+then
+  cat << EOM
+Objective: deploy a MNIST model on the cloud
+Usage:   ./bin/launch_deploy_model <project_id> <auth_file> <model_type> <job_number> <model_version>
+Example: ./bin/launch_deploy_model mnist-222313 auth/auth-key.json deep 1 v1
+EOM
+  exit 1
+fi
+
+project_id=$1
+auth_file=$2
+model_type=$3
+job_number=$4
+model_version=$5
+
+#=====================================
+# Set up
+#=====================================
+
+project_name=$(echo "$project_id" | cut -d"-" -f1)
+
+region=europe-west1
+bucket_name=storage-${project_name}
+
+job_name=${project_name}_train_${model_type}_${job_number}
+
+model_name=${project_name}_${model_type}
+model_binaries=gs://${bucket_name}/${job_name}/export/${project_name}
+
+#========================
+# Execution
+#========================
+
+echo "Set up credentials and project"
+gcloud auth activate-service-account --key-file $auth_file
+gcloud config set project $project_id
+
+echo "Inspect the generated model files"
+timestamp=$(gsutil ls $model_binaries | tail -n1 | rev | cut -d"/" -f2 | rev)
+model_binaries=${model_binaries}/${timestamp}
+gsutil ls -r $model_binaries
+
+echo "Deploy the model"
+gcloud ml-engine models create $model_name --regions=$region
+gcloud ml-engine versions create $model_version \
+  --model $model_name \
+  --origin $model_binaries \
+  --runtime-version 1.8
+
+echo "Check list of models"
+gcloud ml-engine models list

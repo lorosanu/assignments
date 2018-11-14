@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+
+#=====================================
+# Process the command line arguments
+#=====================================
+
+if [ $# -ne 3 ] || ([ $# == 1 ] && [ "$1" == "-h" ] || [ "$1" == "--help" ])
+then
+  cat << EOM
+Objective: train a MNIST model on the cloud
+Usage:   ./bin/launch_train_cloud <project_id> <auth_file> <model_type>
+Example: ./bin/launch_train_cloud mnist-222313 auth/auth-key.json shallow
+EOM
+  exit 1
+fi
+
+project_id=$1
+auth_file=$2
+model_type=$3
+
+#=====================================
+# Set up
+#=====================================
+
+project_name=$(echo "$project_id" | cut -d"-" -f1)
+
+region=europe-west1
+bucket_name=storage-${project_name}
+
+job_name=${project_name}_train_${model_type}_1
+output_path=gs://${bucket_name}/${job_name}
+
+#=====================================
+# Execution
+#=====================================
+
+echo "Set up credentials and project"
+gcloud auth activate-service-account --key-file $auth_file
+gcloud config set project $project_id
+
+echo "Set up the Cloud Storage bucket"
+gsutil mb -l $region gs://${bucket_name}
+
+echo "Upload code"
+gsutil cp -r setup.py requirements.txt mnist gs://${bucket_name}/
+
+echo "Submit training job"
+
+if [ "$model_type" == "shallow" ]
+then
+    gcloud ml-engine jobs submit training $job_name \
+        --job-dir $output_path \
+        --runtime-version 1.8 \
+        --module-name mnist.task \
+        --package-path mnist/ \
+        --region $region \
+        -- \
+        --shallow \
+        --train-steps 1000 \
+        --eval-steps 100 \
+        --train-batch-size 256 \
+        --eval-batch-size 256 \
+        --verbosity DEBUG
+elif [ "$model_type" == "deep" ]
+then
+    gcloud ml-engine jobs submit training $job_name \
+        --job-dir $output_path \
+        --runtime-version 1.8 \
+        --module-name mnist.task \
+        --package-path mnist/ \
+        --region $region \
+        -- \
+        --train-steps 1000 \
+        --eval-steps 100 \
+        --train-batch-size 256 \
+        --eval-batch-size 256 \
+        --verbosity DEBUG
+else
+    echo "Unknown model type: $model_type"
+    exit 1
+fi
+
+echo "Inspect the generated output files"
+gsutil ls -r $output_path
