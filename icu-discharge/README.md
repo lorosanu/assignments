@@ -1,6 +1,6 @@
 # Discharging patients from the Intensive Care Unit
 
-This repository contains a Jupyter notebook.
+This repository contains a [Jupyter notebook](http://nbviewer.jupyter.org/github/lorosanu/assignments/blob/master/icu-discharge/icu_discharge.ipynb).  
 It implements a code sample for using Machine Learning to decide when a patient should be discharged from the ICU.
 
 ## Usage
